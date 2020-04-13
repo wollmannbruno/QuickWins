@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 from netmiko import ConnectHandler
 from getpass import getpass
 from datetime import datetime
@@ -10,10 +11,12 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 
 def main():
 
-    print('\n')
-    username = input('Username:')
-    password = getpass()
-    print('\n')
+    # print('\n')
+    # username = input('Username:')
+    # password = getpass()
+    # print('\n')
+
+    username, password = get_creds()
 
     primary = {
         'device_type': 'cisco_asa',
@@ -39,7 +42,22 @@ def main():
         vpn_sessiondb = show_vpn_sessiondb(firewall)
         results.append(vpn_sessiondb)
 
-    output_to_excel(tab_name, results)    
+    output_to_excel(tab_name, results)
+
+
+def get_creds():
+    '''
+    '''
+
+    print('\n')
+    print('-' * 40)
+    un = input('Username, (q) to quit:')
+    if un.lower() == 'q': exit('EXITING')
+    pw = getpass()
+    if pw.lower() == 'q': exit('EXITING')
+    print('-' * 40)
+    print('\n')
+    return(un, pw)
 
 
 def show_vpn_sessiondb(device):
