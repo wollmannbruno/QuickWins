@@ -3,8 +3,8 @@
 from netmiko import ConnectHandler
 from getpass import getpass
 from datetime import datetime
-from openpyxl import Workbook
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
+from openpyxl.utils.cell import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 
@@ -30,7 +30,7 @@ def main():
     }
 
     now = datetime.now()
-    tab_name = now.strftime('%Y|%m|%d_%H|%M|%S')
+    tab_name = now.strftime('%Y_%m_%d_%H_%M_%S')
     results = []
 
     for firewall in [primary, secondary]:
@@ -77,6 +77,7 @@ def output_to_excel(tab, data):
     # in the list to generate the column headings
     headings = data[1][0].keys()
     number_of_columns = len(headings) + 1
+    max_column = get_column_letter(number_of_columns)
     for element, heading in enumerate(headings, 2):
         # Populating the column header cells
         ws.cell(1, element, heading)
@@ -98,12 +99,14 @@ def output_to_excel(tab, data):
                 for column_heading in headings:
                     ws.cell(row_number, column_number.get(column_heading), row_data.get(column_heading))
 
-    # table_ref = 'A1:Z{}'.format(row_number)
-    # vpn_table = Table(displayName = 'VPN_Table', ref = table_ref)
-    # ws.add_table(vpn_table)
+    table_ref = 'A1:{}{}'.format(max_column, row_number)
+    table_name = '_{}'.format(tab)
+    vpn_table = Table(displayName = table_name, ref = table_ref)
+    ws.add_table(vpn_table)
     ws.freeze_panes = 'D2'
     wb.save(excel_file)
     print('There are {} rows and {} columns in the spreadsheet'.format(row_number, number_of_columns))
+    print('The table reference is {}'.format(table_ref))
 
 
 if __name__ == "__main__":
