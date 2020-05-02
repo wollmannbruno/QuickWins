@@ -1,37 +1,51 @@
 #!/usr/bin/env python
 
-from netmiko import ConnectHandler
-from getpass import getpass
+"""
+Python script to collect the output of the SHOW VPN-SESSIONDB ANYCONNECT command from a
+set of Cisco ASA firewalls. The output is then saved to a Microsoft Excel file.
+"""
+
 from datetime import datetime
+from getpass import getpass
+from netmiko import ConnectHandler
 from openpyxl import Workbook, load_workbook
 from openpyxl.utils.cell import get_column_letter
 from openpyxl.worksheet.table import Table
 
 
 def main():
+    """
+    The main() function has the following duties:
+     - Contains the inventory of Cisco ASA firewalls to be queried.
+     - Obtains the current date and time.
+     - Calls a function to retrieve credentials for the firewalls.
+     - Iterates through the inventory, calling a function to retieve the desired
+       information.
+     - Calls a function to save the information to a Microsoft Excel file.
+    """
 
     username, password = get_creds()
 
     primary = {
-        'device_type': 'cisco_asa',
-        'host': 'fwl-dc1-vpn-a',
-        'username': username,
-        'password': password,
+        "device_type": "cisco_asa",
+        "host": "fwl-dc1-vpn-a",
+        "username": username,
+        "password": password,
     }
 
     secondary = {
-        'device_type': 'cisco_asa',
-        'host': 'fwl-dc0-inet-a',
-        'username': username,
-        'password': password,
+        "device_type": "cisco_asa",
+        "host": "fwl-dc0-inet-a",
+        "username": username,
+        "password": password,
     }
 
     now = datetime.now()
-    tab_name = now.strftime('%Y_%m_%d_%H_%M_%S')
+    tab_name = now.strftime("%Y_%m_%d_%H_%M_%S")
 
     results = []
     for firewall in [primary, secondary]:
-        results.append(firewall['host'])
+        results.append(firewall["host"])
         vpn_sessiondb = show_vpn_sessiondb(firewall)
         results.append(vpn_sessiondb)
 
@@ -39,49 +53,66 @@ def main():
 
 
 def get_creds():
-    '''
-    '''
+    """
+    The get_creds() funtion queries the user for the username and password needed to
+    logon to each firewall.
+    """
 
-    print('-' * 40)
+    print("-" * 40)
 
-    un = input('Username, (q) to quit: ')
-    if un.lower() == 'q': exit('EXITING')
+    un = input("Username, (q) to quit: ")
+    if un.lower() == "q":
+        exit("QUITTING")
     pw = getpass()
-    if pw.lower() == 'q': exit('EXITING')
+    if pw.lower() == "q":
+        exit("QUITTING")
 
-    print('-' * 40)
+    print("-" * 40)
 
-    return(un, pw)
+    return (un, pw)
 
 
 def show_vpn_sessiondb(device):
-    '''
-    '''
+    """
+    The show_vpn_sessiondb() function uses Netmiko to connect to each firewall, and
+    collect the output from the SHOW VPN-SESSIONDB ANYCONNECT command. It uses TextFSM
+    from network.toCode() to convert the output from one large string to structured data.
+
+    ARGS:
+        device (Dictionary): Device information used by Netmiko.
+    """
 
     done = False
     while not done:
         try:
             net_connect = ConnectHandler(**device)
-            print('Gathering information from {}'.format(device['host']))
+            print(f"Gathering information from {device['host']}")
             done = True
         except:
-            print('\n')
-            print('ERROR: Invalid username or password for {}'.format(device['host']))
+            print("\n")
+            print(f"ERROR: Invalid username or password for {device['host']}")
             username, password = get_creds()
-            device['username'] = username
-            device['password'] = password
+            device["username"] = username
+            device["password"] = password
 
-    output = net_connect.send_command('show vpn-sessiondb anyconnect', use_textfsm=True)
+    output = net_connect.send_command("show vpn-sessiondb anyconnect", use_textfsm=True)
     net_connect.disconnect()
-    return(output)
+    return output
 
 
 def output_to_excel(tab, data):
-    '''
-    '''
+    """
+    The output_to_excel() function saves information to a Microsoft Excel file.
 
-    PATH = r'S:\Cit\Operations\Network\AnyConnect'
-    FILE = r'\AnyConnect.xlsx'
+    ARGS:
+        tab (String): Current date and time used to create the tab name and the table
+        name in the spreadsheet.
+
+        data (List): The data saved to a spreadsheet.
+    """
+
+    PATH = r"S:\Cit\Operations\Network\AnyConnect"
+    FILE = r"\AnyConnect.xlsx"
     excel_file = PATH + FILE
 
     try:
@@ -93,7 +124,7 @@ def output_to_excel(tab, data):
 
     ws = wb.create_sheet(tab, 0)
 
-    ws.cell(1, 1, 'Firewall')
+    ws.cell(1, 1, "Firewall")
     column_number = {}
     # Using the first dictionary from the second item
     # in the list to generate the column headings
@@ -121,15 +152,19 @@ def output_to_excel(tab, data):
                 for column_heading in headings:
                     # Populating the rest of the cells in the row by using
                     # a dictionary lookup where the column header is the key
-                    ws.cell(row_number, column_number.get(column_heading), row_data.get(column_heading))
+                    ws.cell(
+                        row_number,
+                        column_number.get(column_heading),
+                        row_data.get(column_heading),
+                    )
 
-    table_ref = 'A1:{}{}'.format(max_column, row_number)
-    table_name = '_{}'.format(tab)
+    table_ref = f"A1:{max_column}{row_number}"
+    table_name = f"_{tab}"
     vpn_table = Table(displayName=table_name, ref=table_ref)
     ws.add_table(vpn_table)
-    ws.freeze_panes = 'D2'
+    ws.freeze_panes = "D2"
     wb.save(excel_file)
-    print('Recorded {} rows in spreadsheet {}'.format(row_number, excel_file))
+    print(f"Recorded {row_number} rows in spreadsheet {excel_file}")
 
 
 if __name__ == "__main__":
